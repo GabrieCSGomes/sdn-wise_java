@@ -229,7 +229,8 @@ public abstract class AbstractMote extends AbstractApplicationMote {
 	}else{
 		log("agregando");		
 		AggregationMenssage(packet);
-		//desttruir a mensagem packet	
+		//desttruir a mensagem packet
+		//teste pro git	
 	}        
 	if (isAcceptedIdPacket(packet)) {
             SDN_WISE_Callback(packet);
