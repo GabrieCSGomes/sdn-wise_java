@@ -53,6 +53,7 @@ import org.contikios.cooja.*;
 import org.contikios.cooja.interfaces.*;
 import org.contikios.cooja.motes.AbstractApplicationMote;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Example SdnWise mote.
@@ -64,6 +65,9 @@ import java.nio.charset.Charset;
 public abstract class AbstractMote extends AbstractApplicationMote {
 
     public ArrayList<Integer> statusRegister = new ArrayList<>();
+    private ArrayList<byte[]> CopyPacket = new ArrayList<byte[]>(); //ta ok
+
+    public String CopiaAgregada = "";
 
     private Simulation simulation = null;
     private Random random = null;
@@ -225,19 +229,25 @@ public abstract class AbstractMote extends AbstractApplicationMote {
 
     public final void rxData(DataPacket packet) {
 	if (packet.getSrc() == addr) {
-		//log("error");
+
 	}else{
-		log("agregando");		
-		AggregationMenssage(packet);
-		//desttruir a mensagem packet
-		//teste pro git	
+
+		//CopyMenssage(packet);
+		//EmptyList(packet);	
+
 	}        
 	if (isAcceptedIdPacket(packet)) {
             SDN_WISE_Callback(packet);
-	    log(new String(packet.getPayload()) + "chegou no destino");
+	    log(new String(packet.getPayload()) + " chegou no destino, origem : " + packet.getSrc());
         } else if (isAcceptedIdAddress(packet.getNxhop())) {
             runFlowMatch(packet);
 	    log("vai pro proximo salto");
+        if (CopiaAgregada.substring(0, 3) == "Hell") {
+                
+        }else{
+            CopyMenssage(packet);        
+        }
+        //CopyMenssage(packet);
         }
     }
 
@@ -1050,7 +1060,6 @@ public abstract class AbstractMote extends AbstractApplicationMote {
                 while (true) {
                     NetworkPacket np = txQueue.take();
                     radioTX(np);
-		/*se o tempo de simulação dividido por */
                 }
             } catch (InterruptedException ex) {
                 log(ex.getLocalizedMessage());
@@ -1064,35 +1073,29 @@ public abstract class AbstractMote extends AbstractApplicationMote {
         public void run() {
 	   try{            
 		Thread.sleep(60000);    
-		while (true) { //precisa do packet data, networkpacket e o datapacket
-		   /*if (this.functions.get(1) == null) {*/
-	    		//log("callback do mote");
-			//log("addr" + String.valueOf(addr));
-			//log("sink address" + String.valueOf(getActualSinkAddress()));			
-			//DataPacket p;
-			//byte[] packetData = null;			
-			//p = new DataPacket(packetData);
-            		DataPacket p = new DataPacket(1,addr,getActualSinkAddress());
-			p.setSrc(addr)
+		while (true) {
+
+            String agregada = "";
+            for(byte[] mensagem : CopyPacket) {
+                agregada += new String(mensagem,Charset.forName("UTF-8"));
+            }
+
+            CopiaAgregada = agregada;
+
+            DataPacket p = new DataPacket(1,addr,getActualSinkAddress());
+			
+            p.setSrc(addr)
                     		.setDst(getActualSinkAddress())
                     		.setTtl((byte) ttl_max);
-	    		p.setPayload("menseger creator!".getBytes(Charset.forName("UTF-8")));
-	    		log(new String(p.getPayload(),Charset.forName("UTF-8")));
-            		runFlowMatch(p);
-			//log("messagem");
-        	  /* } else {
-            		this.functions.get(1).function(adcRegister,
-                        	flowTable,
-                    		neighborTable,
-                    		statusRegister,
-                    		acceptedId,
-                    		flowTableQueue,
-                    		txQueue,
-                    		0,
-                    		0,
-                    		0,
-                    		packet);
-        	      }*/
+            
+            p.setPayload((addr + agregada).getBytes(Charset.forName("UTF-8")));
+
+            log(new String(p.getPayload(),Charset.forName("UTF-8")));
+     		
+            runFlowMatch(p);
+
+            //inserir na mensagem produzida o conteudo armazenado do copypacket
+            //EmptyList();
 		   Thread.sleep(20000);
                 }
            } catch (InterruptedException ex) {
@@ -1101,23 +1104,22 @@ public abstract class AbstractMote extends AbstractApplicationMote {
         }
     }
     
-    public void AggregationMenssage(DataPacket p) {       		
-	log("agg" + new String(p.getPayload(),Charset.forName("UTF-8")));
+    public void CopyMenssage(DataPacket p) {       	
+        if(p.getDst() != addr){
+            CopyPacket.add(p.getPayload());
+
+        //EmptyList();
+
+        //p = null;
+		//esse p tem que ser apagado
+		//deixar o payload vazio
+		//setar um endereço de destino não existente
+	}
+
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    //criar metodo que esvazia a lista de pacote quando o timer de envio for disparado - emptylist
+    /*public void EmptyList() {
+	   CopyPacket.clear();
+    }*/
 }

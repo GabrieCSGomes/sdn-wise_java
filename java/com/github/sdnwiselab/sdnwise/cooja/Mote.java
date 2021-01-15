@@ -46,20 +46,17 @@ public class Mote extends AbstractMote {
         setDistanceFromSink(ttl_max + 1);
         setRssiSink(0);
         setSemaphore(0);
-	/*chamada do metodo de envio periodico de mensagem
-	sendperiodmsg();
-*/
     }
 
     @Override
     public void SDN_WISE_Callback(DataPacket packet) {
         if (this.functions.get(1) == null) {
-	    log("callback do mote");
+	    //log("callback do mote");
             packet.setSrc(addr)
                     .setDst(getActualSinkAddress())
                     .setTtl((byte) ttl_max);
-	    packet.setPayload("Hello World mote!".getBytes(Charset.forName("UTF-8")));
-	    log(new String(packet.getPayload(),Charset.forName("UTF-8")));
+	    packet.setPayload("Hello World do mote! ".getBytes(Charset.forName("UTF-8")));
+	    //log(new String(packet.getPayload(),Charset.forName("UTF-8")));
             runFlowMatch(packet);
         } else {
 	    //log("um teste ai");
@@ -138,12 +135,4 @@ public class Mote extends AbstractMote {
         setSemaphore(0);
         setDistanceFromSink(255);
     }
-   /*public void periodsend(){
-   	packet.setSrc(addr)
-                    .setDst(getActualSinkAddress())
-                    .setTtl((byte) ttl_max);
-	    packet.setPayload("Hello World mote!".getBytes(Charset.forName("UTF-8")));
-	    log(new String(packet.getPayload(),Charset.forName("UTF-8")));
-            runFlowMatch(packet);
-   }*/
 }
