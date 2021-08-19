@@ -65,7 +65,7 @@ import java.nio.charset.StandardCharsets;
 public abstract class AbstractMote extends AbstractApplicationMote {
 
     public ArrayList<Integer> statusRegister = new ArrayList<>();
-    private ArrayList<byte[]> CopyPacket = new ArrayList<byte[]>(); //ta ok
+    public ArrayList<byte[]> CopyPacket = new ArrayList<byte[]>();
 
     public String CopiaAgregada = "";
 
@@ -227,27 +227,28 @@ public abstract class AbstractMote extends AbstractApplicationMote {
         return ((AbstractForwardAction) (flowTable.get(0).getActions().get(0))).getNextHop();
     }
 
+/*
+ *
+ * Aqui a cópia da mensagem é feita para o buffer de agregação 
+ *
+ */
     public final void rxData(DataPacket packet) {
 	if (packet.getSrc() == addr) {
 
 	}else{
 
-		//CopyMenssage(packet);
-		//EmptyList(packet);	
-
 	}        
 	if (isAcceptedIdPacket(packet)) {
-            SDN_WISE_Callback(packet);
-	    log(new String(packet.getPayload()) + " chegou no destino, origem : " + packet.getSrc());
-        } else if (isAcceptedIdAddress(packet.getNxhop())) {
+        SDN_WISE_Callback(packet);
+        log("chegou no destino, origem : " + packet.getSrc() 
+            + "Com o conteudo: " + new String(packet.getPayload()));
+    } else if (isAcceptedIdAddress(packet.getNxhop())) {            
+            if (new String(packet.getPayload()).substring(0,1).equals("P")) {
+                CopyMenssage(packet);
+            }
+            //O Ttl é 0 para que a mensagem inicial do nó seja exluida
+            packet.setTtl((byte) 0); 
             runFlowMatch(packet);
-	    log("vai pro proximo salto");
-        if (CopiaAgregada.substring(0, 3) == "Hell") {
-                
-        }else{
-            CopyMenssage(packet);        
-        }
-        //CopyMenssage(packet);
         }
     }
 
@@ -949,6 +950,7 @@ public abstract class AbstractMote extends AbstractApplicationMote {
             rp.setNeighbourAddressAt(neighborTable.get(j).getAddr(), j)
                     .setNeighbourWeightAt((byte) neighborTable.get(j).getRssi(), j);
         }
+        //log("AQUI TA O RP" + rp); 
         initNeighborTable();
         return rp;
     }
@@ -1067,59 +1069,59 @@ public abstract class AbstractMote extends AbstractApplicationMote {
         }
     }
 
-   private class MensegerCreator implements Runnable {
+    /*
+        Aqui a mensagem é criada
+    */
+
+    private class MensegerCreator implements Runnable {
 
         @Override
         public void run() {
-	   try{            
-		Thread.sleep(60000);    
-		while (true) {
+            try{
+                Thread.sleep(60000);
+                while (true) {
+                    /*mexer nesse for e tentar fazer a filtração por aqui*/
+                    String agregada = "";
 
-            String agregada = "";
-            for(byte[] mensagem : CopyPacket) {
-                agregada += new String(mensagem,Charset.forName("UTF-8"));
-            }
+                    for(byte[] mensagem : CopyPacket) {
+                        agregada = agregada + new String(mensagem,Charset.forName("UTF-8"));
+                    }
 
-            CopiaAgregada = agregada;
 
-            DataPacket p = new DataPacket(1,addr,getActualSinkAddress());
+                    DataPacket p = new DataPacket(1,addr,getActualSinkAddress());
 			
-            p.setSrc(addr)
-                    		.setDst(getActualSinkAddress())
-                    		.setTtl((byte) ttl_max);
+                    p.setSrc(addr)
+                            		.setDst(getActualSinkAddress())
+                            		.setTtl((byte) ttl_max);
             
-            p.setPayload((addr + agregada).getBytes(Charset.forName("UTF-8")));
+                    p.setPayload(("P " + addr + " " + agregada)
+                        .getBytes(Charset.forName("UTF-8")));
 
-            log(new String(p.getPayload(),Charset.forName("UTF-8")));
+                    log(new String(p.getPayload(),Charset.forName("UTF-8")));
      		
-            runFlowMatch(p);
+                    runFlowMatch(p);
+                    
+                    //verificar esse removeAll
+                    CopyPacket.removeAll(CopyPacket);
+                    //log("teste2 " + CopyPacket.size());
 
-            //inserir na mensagem produzida o conteudo armazenado do copypacket
-            //EmptyList();
-		   Thread.sleep(20000);
+                    Thread.sleep(20000);
                 }
-           } catch (InterruptedException ex) {
-                log(ex.getLocalizedMessage());
+            } catch (InterruptedException ex) {
+                log(ex.getLocalizedMessage()); 
             } 
         }
     }
     
+    /*
+        Insere payload no buffer de agregação
+    */
     public void CopyMenssage(DataPacket p) {       	
         if(p.getDst() != addr){
+            //log("teste CopyMenssage" + CopyPacket.size());
             CopyPacket.add(p.getPayload());
-
-        //EmptyList();
-
-        //p = null;
-		//esse p tem que ser apagado
-		//deixar o payload vazio
-		//setar um endereço de destino não existente
-	}
-
+	    }
     }
 
-    //criar metodo que esvazia a lista de pacote quando o timer de envio for disparado - emptylist
-    /*public void EmptyList() {
-	   CopyPacket.clear();
-    }*/
+    
 }

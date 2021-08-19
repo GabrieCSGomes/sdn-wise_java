@@ -51,15 +51,12 @@ public class Mote extends AbstractMote {
     @Override
     public void SDN_WISE_Callback(DataPacket packet) {
         if (this.functions.get(1) == null) {
-	    //log("callback do mote");
             packet.setSrc(addr)
                     .setDst(getActualSinkAddress())
                     .setTtl((byte) ttl_max);
-	    packet.setPayload("Hello World do mote! ".getBytes(Charset.forName("UTF-8")));
-	    //log(new String(packet.getPayload(),Charset.forName("UTF-8")));
+	    packet.setPayload("Resposta ".getBytes(Charset.forName("UTF-8")));
             runFlowMatch(packet);
         } else {
-	    //log("um teste ai");
             this.functions.get(1).function(adcRegister,
                     flowTable,
                     neighborTable,
