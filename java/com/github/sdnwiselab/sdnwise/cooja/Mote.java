@@ -54,7 +54,9 @@ public class Mote extends AbstractMote {
             packet.setSrc(addr)
                     .setDst(getActualSinkAddress())
                     .setTtl((byte) ttl_max);
-	    packet.setPayload("Resposta ".getBytes(Charset.forName("UTF-8")));
+
+            packet.setPayload("Resposta ".getBytes(Charset.forName("UTF-8")));
+            
             runFlowMatch(packet);
         } else {
             this.functions.get(1).function(adcRegister,

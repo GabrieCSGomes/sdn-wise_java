@@ -69,6 +69,11 @@ public abstract class AbstractMote extends AbstractApplicationMote {
 
     public String CopiaAgregada = "";
 
+    //criar um atributo rate (float)
+    //criar um get set do rate
+
+    private float Rate;
+
     private Simulation simulation = null;
     private Random random = null;
 
@@ -114,6 +119,15 @@ public abstract class AbstractMote extends AbstractApplicationMote {
     HashMap<Integer, LinkedList<int[]>> functionBuffer = new HashMap<>();
     HashMap<Integer, FunctionInterface> functions = new HashMap<>();
     Logger MeasureLOGGER;
+
+    public float getRate() {
+        return Rate;
+    }
+
+
+    public void setRate(float rate) {
+        Rate = rate;
+    }
 
     public AbstractMote() {
         super();
@@ -237,17 +251,31 @@ public abstract class AbstractMote extends AbstractApplicationMote {
 
 	}else{
 
-	}        
-	if (isAcceptedIdPacket(packet)) {
+	}     
+    
+    if (packet.getDst().equals(addr)){
+        /*if (new String(packet.getPayload()).substring(0,1).equals("C")) {
+            log("chegou no destino, origem : " + packet.getSrc() 
+                + "Com o conteudo: " + new String(packet.getPayload()));
+        }*/
+        log("chegou no destino, origem : " + packet.getSrc() 
+            + "Com o conteudo: " + new String(packet.getPayload()));
+    }
+	
+    if (isAcceptedIdPacket(packet)) {
+
         SDN_WISE_Callback(packet);
         log("chegou no destino, origem : " + packet.getSrc() 
             + "Com o conteudo: " + new String(packet.getPayload()));
+
     } else if (isAcceptedIdAddress(packet.getNxhop())) {            
             if (new String(packet.getPayload()).substring(0,1).equals("P")) {
                 CopyMenssage(packet);
+                packet.setTtl((byte) 0);
             }
+
             //O Ttl é 0 para que a mensagem inicial do nó seja exluida
-            packet.setTtl((byte) 0); 
+            //packet.setTtl((byte) 0); 
             runFlowMatch(packet);
         }
     }
@@ -1123,5 +1151,8 @@ public abstract class AbstractMote extends AbstractApplicationMote {
 	    }
     }
 
-    
+    // criar um novo metodo que irá ter uma porcentagem de agregação
+    /*
+
+    */
 }
