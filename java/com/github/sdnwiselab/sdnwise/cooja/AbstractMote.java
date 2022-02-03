@@ -54,6 +54,7 @@ import org.contikios.cooja.interfaces.*;
 import org.contikios.cooja.motes.AbstractApplicationMote;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.*;
 
 /**
  * Example SdnWise mote.
@@ -66,13 +67,11 @@ public abstract class AbstractMote extends AbstractApplicationMote {
 
     public ArrayList<Integer> statusRegister = new ArrayList<>();
     public ArrayList<byte[]> CopyPacket = new ArrayList<byte[]>();
+    public ArrayList<String> StringCopyPacket = new ArrayList<String>();
 
     public String CopiaAgregada = "";
 
-    //criar um atributo rate (float)
-    //criar um get set do rate
-
-    private float Rate;
+    private float Rate = 1;
 
     private Simulation simulation = null;
     private Random random = null;
@@ -120,13 +119,12 @@ public abstract class AbstractMote extends AbstractApplicationMote {
     HashMap<Integer, FunctionInterface> functions = new HashMap<>();
     Logger MeasureLOGGER;
 
-    public float getRate() {
-        return Rate;
+    public float getRate() {        
+        return this.Rate;
     }
 
-
     public void setRate(float rate) {
-        Rate = rate;
+        this.Rate = rate;
     }
 
     public AbstractMote() {
@@ -252,14 +250,16 @@ public abstract class AbstractMote extends AbstractApplicationMote {
 	}else{
 
 	}     
-    
+
+    //mensagem do controlador
     if (packet.getDst().equals(addr)){
-        /*if (new String(packet.getPayload()).substring(0,1).equals("C")) {
-            log("chegou no destino, origem : " + packet.getSrc() 
-                + "Com o conteudo: " + new String(packet.getPayload()));
-        }*/
         log("chegou no destino, origem : " + packet.getSrc() 
             + "Com o conteudo: " + new String(packet.getPayload()));
+        if(new String(packet.getPayload()).substring(0,3).equals("Agg")){
+            String[] txt = new String(packet.getPayload()).split(":");
+
+            setRate(Float.parseFloat(txt[1]));
+        }
     }
 	
     if (isAcceptedIdPacket(packet)) {
@@ -759,7 +759,7 @@ public abstract class AbstractMote extends AbstractApplicationMote {
 
         new Thread(new PacketManager()).start();
         new Thread(new PacketSender()).start();
-	new Thread(new MensegerCreator()).start(); //gabrielgomes
+        new Thread(new MensegerCreator()).start(); //gabrielgomes
     }
 
     private int getOperand(NetworkPacket packet, int size, int location, int value) {
@@ -1097,10 +1097,7 @@ public abstract class AbstractMote extends AbstractApplicationMote {
         }
     }
 
-    /*
-        Aqui a mensagem é criada
-    */
-
+    //Aqui a mensagem é criada
     private class MensegerCreator implements Runnable {
 
         @Override
@@ -1108,30 +1105,46 @@ public abstract class AbstractMote extends AbstractApplicationMote {
             try{
                 Thread.sleep(60000);
                 while (true) {
-                    /*mexer nesse for e tentar fazer a filtração por aqui*/
+                    
                     String agregada = "";
 
                     for(byte[] mensagem : CopyPacket) {
                         agregada = agregada + new String(mensagem,Charset.forName("UTF-8"));
                     }
 
-
                     DataPacket p = new DataPacket(1,addr,getActualSinkAddress());
-			
-                    p.setSrc(addr)
-                            		.setDst(getActualSinkAddress())
-                            		.setTtl((byte) ttl_max);
             
-                    p.setPayload(("P " + addr + " " + agregada)
-                        .getBytes(Charset.forName("UTF-8")));
+                    p.setSrc(addr)
+                                    .setDst(getActualSinkAddress())
+                                    .setTtl((byte) ttl_max);
+
+                    //retorno da taxa de agregação
+                    int output = ComputeOutputPayload();
+                    
+                    //criação da mensagem agragada com variação da taxa de agregação
+                    //if (output == 1 && (agregada.length() < 7) == true) { //transformar ele em uma variavel
+                        
+                    if (output == 1 && (agregada.contains(";P")) == false) {
+
+                        p.setPayload(("P " + addr + ";" + agregada)
+                            .getBytes(Charset.forName("UTF-8")));
+
+                    } else {
+
+                        String texto = "";
+
+                        texto = agregada.substring(0, (output * 6)); //não usar o 6 e sim um delimitador
+
+                        p.setPayload(("P " + addr + ";" + texto)
+                            .getBytes(Charset.forName("UTF-8")));
+
+                    }
 
                     log(new String(p.getPayload(),Charset.forName("UTF-8")));
-     		
+            
                     runFlowMatch(p);
                     
-                    //verificar esse removeAll
-                    CopyPacket.removeAll(CopyPacket);
-                    //log("teste2 " + CopyPacket.size());
+                    CopyPacket.clear();
 
                     Thread.sleep(20000);
                 }
@@ -1141,18 +1154,39 @@ public abstract class AbstractMote extends AbstractApplicationMote {
         }
     }
     
-    /*
-        Insere payload no buffer de agregação
-    */
+    //Insere payload no buffer de agregação
     public void CopyMenssage(DataPacket p) {       	
         if(p.getDst() != addr){
-            //log("teste CopyMenssage" + CopyPacket.size());
             CopyPacket.add(p.getPayload());
 	    }
     }
 
-    // criar um novo metodo que irá ter uma porcentagem de agregação
-    /*
+    public int ComputeOutputPayload() {
+        int input;
+        float rate = 1 - getRate();     //Math.round(1 - getRate());
+        int output;
+        String agregada = "";
 
-    */
+        for(byte[] mensagem : CopyPacket) {
+            agregada = agregada + new String(mensagem,Charset.forName("UTF-8"));
+        }        
+
+        String[] textoSeparado = agregada.split(";");
+
+        //O input ele pega a quantidade de elementos(pacotes) que se tem no vetor.
+        input = textoSeparado.length;
+        
+        output = Math.round(rate * input);
+
+        if (output == 0 ){
+            output++;
+        }
+
+        log("output " + output);
+        log("input " + input);
+        log("rate " + rate);
+
+        return output;
+    }
+
 }
