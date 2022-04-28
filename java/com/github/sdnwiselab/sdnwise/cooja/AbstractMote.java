@@ -73,6 +73,9 @@ public abstract class AbstractMote extends AbstractApplicationMote {
 
     private float Rate = 1;
 
+    //variavel criada para contabilizar mensagens
+    private static int count = 0;
+
     private Simulation simulation = null;
     private Random random = null;
 
@@ -215,7 +218,7 @@ public abstract class AbstractMote extends AbstractApplicationMote {
         if (np.getType() > 7 && !np.isRequest()) {
             sentDataBytes += np.getPayloadSize();
         }
-
+        
         battery.transmitRadio(np.getLen());
         np.decrementTtl();
         RadioPacket pk = new COOJARadioPacket(np.toByteArray());
@@ -253,8 +256,8 @@ public abstract class AbstractMote extends AbstractApplicationMote {
 
     //mensagem do controlador
     if (packet.getDst().equals(addr)){
-        log("chegou no destino, origem : " + packet.getSrc() 
-            + "Com o conteudo: " + new String(packet.getPayload()));
+        //log("chegou no destino, origem : " + packet.getSrc() 
+        //    + "Com o conteudo: " + new String(packet.getPayload()));
         if(new String(packet.getPayload()).substring(0,3).equals("Agg")){
             String[] txt = new String(packet.getPayload()).split(":");
 
@@ -263,14 +266,32 @@ public abstract class AbstractMote extends AbstractApplicationMote {
     }
 	
     if (isAcceptedIdPacket(packet)) {
+        String txt = "";
+
+        txt = txt + new String(packet.getPayload());
+        String[] txtSplit = new String(txt).split(";");
+
+        count += txtSplit.length;
+        
+        if (new String(packet.getPayload()).substring(0,1).equals("P")) {
+            /*log("Volume: " + txt + " count: " + count 
+                + " tamanho: "+ packet.getPayload().length);*/
+            log("Traffic: " + (packet.getPayload().length * count) 
+                + " Battery: " + String.valueOf(battery.getBatteryPercent() / 2.55)); 
+        }  
 
         SDN_WISE_Callback(packet);
-        log("chegou no destino, origem : " + packet.getSrc() 
-            + "Com o conteudo: " + new String(packet.getPayload()));
+        /*log("chegou no destino, origem : " + packet.getSrc() 
+            + " Com o conteudo: " + new String(packet.getPayload()) 
+            + " count: " + count + " tamanho: "+ packet.getPayload().length);*/
+        log("Traffic: " + (packet.getPayload().length * count) 
+            + " Battery: " + String.valueOf(battery.getBatteryPercent() / 2.55));
+    
+    } else if (isAcceptedIdAddress(packet.getNxhop())) { 
 
-    } else if (isAcceptedIdAddress(packet.getNxhop())) {            
             if (new String(packet.getPayload()).substring(0,1).equals("P")) {
                 CopyMenssage(packet);
+
                 packet.setTtl((byte) 0);
             }
 
@@ -978,7 +999,6 @@ public abstract class AbstractMote extends AbstractApplicationMote {
             rp.setNeighbourAddressAt(neighborTable.get(j).getAddr(), j)
                     .setNeighbourWeightAt((byte) neighborTable.get(j).getRssi(), j);
         }
-        //log("AQUI TA O RP" + rp); 
         initNeighborTable();
         return rp;
     }
@@ -1043,6 +1063,7 @@ public abstract class AbstractMote extends AbstractApplicationMote {
     }
 
     void logTask() {
+        //log("grafico");
         MeasureLOGGER.log(Level.FINEST,
                 // NODE;BATTERY LVL(mC);BATTERY LVL(%);NO. RULES INSTALLED; B SENT; B RECEIVED;
                 "{0},{1},{2},{3},{4},{5},{6},{7}",
@@ -1106,28 +1127,37 @@ public abstract class AbstractMote extends AbstractApplicationMote {
                 Thread.sleep(60000);
                 while (true) {
                     
-                    String agregada = "";
-
-                    for(byte[] mensagem : CopyPacket) {
-                        agregada = agregada + new String(mensagem,Charset.forName("UTF-8"));
-                    }
-
                     DataPacket p = new DataPacket(1,addr,getActualSinkAddress());
             
                     p.setSrc(addr)
                                     .setDst(getActualSinkAddress())
                                     .setTtl((byte) ttl_max);
 
+                    String myAddr = addr.toString();
+
+                    String agregada = myAddr;
+
+                    for(byte[] mensagem : CopyPacket) {
+                        agregada = agregada + new String(mensagem,Charset.forName("UTF-8"));
+                    }
+
+                    log("antes da agg: " + agregada);
+
                     //retorno da taxa de agregação
                     int output = ComputeOutputPayload();
                     
                     //criação da mensagem agragada com variação da taxa de agregação
-                    //if (output == 1 && (agregada.length() < 7) == true) { //transformar ele em uma variavel
-                        
+                    //if (output == 1 && (agregada.length() < 7) == true) { //transformar ele em uma variavel    
+                    
+                    //log("mensagem: " + agregada);
+
                     if (output == 1 && (agregada.contains(";P")) == false) {
 
-                        p.setPayload(("P " + addr + ";" + agregada)
+                        p.setPayload(("P " + addr + ";")
                             .getBytes(Charset.forName("UTF-8")));
+
+                        log("depois da agg: " + 
+                            new String(p.getPayload(),Charset.forName("UTF-8")));
 
                     } else {
 
@@ -1135,15 +1165,18 @@ public abstract class AbstractMote extends AbstractApplicationMote {
 
                         texto = agregada.substring(0, (output * 6)); //não usar o 6 e sim um delimitador
 
-                        p.setPayload(("P " + addr + ";" + texto)
+                        log("depois da agg: " + texto);
+                        //+ "origem da mensagem: " + p.getSrc() + "trafego da mensagem anterior" + count * texto);
+
+                        p.setPayload((texto)
                             .getBytes(Charset.forName("UTF-8")));
 
                     }
 
-                    log(new String(p.getPayload(),Charset.forName("UTF-8")));
+                    //log(new String(p.getPayload(),Charset.forName("UTF-8")));
             
                     runFlowMatch(p);
-                    
+
                     CopyPacket.clear();
 
                     Thread.sleep(20000);
@@ -1174,7 +1207,8 @@ public abstract class AbstractMote extends AbstractApplicationMote {
         String[] textoSeparado = agregada.split(";");
 
         //O input ele pega a quantidade de elementos(pacotes) que se tem no vetor.
-        input = textoSeparado.length;
+        //O acrescimo de +1 é por conta de o input não contar com o próprio pacote criado pelo nó
+        input = (textoSeparado.length) + 1; 
         
         output = Math.round(rate * input);
 
@@ -1182,8 +1216,8 @@ public abstract class AbstractMote extends AbstractApplicationMote {
             output++;
         }
 
-        log("output " + output);
-        log("input " + input);
+        //log("output " + output);
+        //log("input " + input);
         log("rate " + rate);
 
         return output;

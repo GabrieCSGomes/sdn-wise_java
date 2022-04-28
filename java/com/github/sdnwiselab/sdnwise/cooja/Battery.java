@@ -25,8 +25,8 @@ package com.github.sdnwiselab.sdnwise.cooja;
  */
 public class Battery {
 
-    private final static double maxLevel = 5000;    // 9000000 mC = 2 AAA batteries = 15 Days  
-    // 5000 mC = 12 min 
+    private final static double maxLevel = 25000;    // 9000000 mC = 2 AAA batteries = 15 Days  
+    // 5000 mC = 12 min; 12500 mC = 30 min; 25000 mC = 60 min
     private final static double keepAlive = 6.8;        // mC spent every 1 s
     private final static double transmitRadio = 0.0027; // mC to send 1byte
     private final static double receiveRadio = 0.00094; // mC to receive 1byte
